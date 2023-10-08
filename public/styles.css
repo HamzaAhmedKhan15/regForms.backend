@@ -1,0 +1,22 @@
+*{
+    margin: 0;
+    padding: 0;
+}
+
+body{
+    min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.buttoned{
+    width: 100px;
+    font-size: larger;
+    color: white;
+    background-color: rgb(86, 0, 224);
+    margin: 10px;
+    padding: 10px;
+    border-radius: 5px;
+
+} 

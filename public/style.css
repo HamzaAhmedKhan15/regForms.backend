@@ -93,3 +93,8 @@ form .text h3 a{
 form .text h3 a:hover{
   text-decoration: underline;
 }
+
+.buttoned {
+  width: 100%;
+
+}
