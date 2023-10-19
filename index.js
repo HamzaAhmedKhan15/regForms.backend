@@ -36,6 +36,7 @@ import path from "path";
 import mongoose from "mongoose";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 
 const server = express();
 
@@ -49,7 +50,7 @@ mongoose
 // Setting up view engine
 server.set("view engine", "ejs");
 
-server.get("/form", (req, res) => {
+// server.get("/form", (req, res) => {
   // res.send("Hi")
 
   // res.sendStatus(404)
@@ -62,32 +63,76 @@ server.get("/form", (req, res) => {
   // const pathlocation = path.resolve();
   // res.sendFile(path.join(pathlocation, "./index.html"));
 
-  res.render("index", { name: "Hamza" });
-});
+//   res.render("index", { name: "Hamza" });
+// });
 
-/////////////////////////// MIDDLEWARE
+/////////////////////////// MIDDLEWAREs ///////////////////////////////////////////
 server.use(express.static(path.join(path.resolve(), "public")));
 server.use(express.urlencoded({ extended: true }));
 server.use(cookieParser());
 
 /////////////////////////////////////////////////////////
 
-const isAuthenticated = (req, res, next) => {
+const isAuthenticated = async(req, res, next) => {
   const token = req.cookies.token;
   if (token) {
+    const decoded = jwt.verify(token, "abbadabbajabba");
+
+    req.user = await User.findById(decoded._id);
+
     next();
   } else {
-    res.render("login");
+    res.redirect("/login");
   }
 };
 
 server.get("/", isAuthenticated, (req, res) => {
-  res.render("logout");
+  res.render("logout", {name: req.user.name });
 });
 
+server.get("/login",(req, res) => {
+  res.render("login");
+});
+
+server.get("/register",(req, res) => {
+  res.render("register");
+});
+
+
+
 server.post("/login", async (req, res) => {
-  const { name, email, password } = req.body;
-  const user = await User.create({ name, email, password });
+  const {email, password} = req.body;
+  
+  let user = await User.findOne({email})
+
+  if(!user) return res.redirect("/register");
+
+  const isMatch = await bcrypt.compare(password, user.password);
+
+  if(!isMatch) return res.render("login", {email, message:"Incorrect Password"});
+
+  const token = jwt.sign({ _id: user._id }, "abbadabbajabba"); // secret key
+
+  res.cookie("token", token, {
+    httpOnly: true,
+    expires: new Date(Date.now() + 60 * 1000),
+  });
+  res.redirect("/");
+
+});
+
+
+
+server.post("/register", async (req, res) => {
+  const { name, email,password } = req.body;
+
+  let user = await User.findOne({email});
+  if (user) return res.redirect("/login");
+
+  const hashedPassword = await bcrypt.hash(password,10);
+
+
+  user = await User.create({ name, email, password: hashedPassword });
 
   const token = jwt.sign({ _id: user._id }, "abbadabbajabba"); // secret key
 
@@ -98,6 +143,7 @@ server.post("/login", async (req, res) => {
   res.redirect("/");
 });
 
+
 server.get("/logout", (req, res) => {
   const token = req.cookies.token; // Retrieve the token from cookies
 
@@ -106,9 +152,9 @@ server.get("/logout", (req, res) => {
     expires: new Date(Date.now()),
   });
   if (token) {
-    res.render("logout");
+    res.redirect("logout");
   } else {
-    res.render("login");
+    res.redirect("login");
   }
 });
 
@@ -142,11 +188,11 @@ const User = mongoose.model("User", userSchema);
 //   res.send("Done")
 //   });
 
-server.post("/register", async (req, res) => {
-  const { name, email, password } = req.body;
-  await Registration.create({ name, email, password });
-  res.redirect("/success");
-});
+// server.post("/register", async (req, res) => {
+//   const { name, email, password } = req.body;
+//   await Registration.create({ name, email, password });
+//   res.redirect("/success");
+// });
 
 server.listen(5000, () => {
   console.log("Server is working");
